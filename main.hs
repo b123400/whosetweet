@@ -27,7 +27,6 @@ instance RenderMessage MyApp FormMessage where
 
 instance YesodAuth MyApp where
     type AuthId MyApp = T.Text
-    authenticate = return . Authenticated . credsToText
 
     loginDest _ = HomeR
     logoutDest _ = HomeR
@@ -35,15 +34,40 @@ instance YesodAuth MyApp where
     maybeAuthId = lookupSession "_ID"
     authHttpManager = httpManager
 
+    authenticate creds =
+        let
+            accessKey    = getAccessKey creds
+            accessSecret = getAccessSecret creds
+            screenName   = getScreenName creds
+        in
+        case (accessKey, accessSecret, screenName) of
+            (Just key, Just secret, Just name) ->
+                setSession "accessKey" key >>
+                setSession "accessSecret" secret >>
+                (return $ Authenticated $ name)
+            otherwise ->
+                return $ ServerError "Missing params"
+
 clientKey :: ByteString
 clientKey = "l2GlANAaQcWk8EcwgFKDeRIsy"
 
 clientSecret :: ByteString
 clientSecret = "WtYgEtHkmkvrD1g69OXfbcTnRPgrJ6p8yK31NcbhjoXCD0Kq7m"
 
-credsToText :: Creds MyApp -> T.Text
-credsToText cred = T.intercalate "/" $ map (\(a, b)-> T.concat [a,":",b]) $ credsExtra cred
+firstKey :: [(a, b)] -> (a -> Bool) -> Maybe b
+firstKey []          _ = Nothing
+firstKey ((a,b):xs) fn
+    | fn a             = Just b
+    | otherwise        = firstKey xs fn
 
+getAccessKey :: Creds MyApp -> Maybe Text
+getAccessKey creds = firstKey (credsExtra creds) (=="oauth_token")
+
+getAccessSecret :: Creds MyApp -> Maybe Text
+getAccessSecret creds = firstKey (credsExtra creds) (=="oauth_token_secret")
+
+getScreenName :: Creds MyApp -> Maybe Text
+getScreenName creds = firstKey (credsExtra creds) (=="screen_name")
 
 getHomeR :: Handler Html
 getHomeR = do
