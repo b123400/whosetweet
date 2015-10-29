@@ -62,4 +62,11 @@ executable         whosetweet
                  , containers
                  , vector
                  , time
-                 , yesod-auth-oauth              >= 1.4        && < 1.5
+                 , yesod-auth-oauth              >= 1.4        && < 2.0
+                 , authenticate-oauth            >= 1.5        && < 2.0
+                 , transformers                  >= 0.4        && < 0.5
+                 , twitter-conduit
+                 , twitter-types
+                 , twitter-types-lens
+                 , lens                          >  4          && < 5
+                 , resourcet                     >= 1.1        && < 1.2
