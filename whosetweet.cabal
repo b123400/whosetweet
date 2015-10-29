@@ -72,3 +72,5 @@ executable         whosetweet
                  , resourcet                     >= 1.1        && < 1.2
                  , http-types
                  , wai
+                 , yesod-static
+                 , blaze-builder                 >= 0.4

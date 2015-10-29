@@ -40,10 +40,19 @@ twInfo token secret = def
     , twProxy = Nothing
     }
 
-loadTweets :: MonadResource m => Manager -> T.Text -> T.Text -> m [Status]
+loadTweets :: MonadResource m
+           => Manager      -- network manager
+           -> T.Text       -- access token
+           -> T.Text       -- access secret
+           -> m [Status]
 loadTweets manager token secret =
     call (twInfo token secret) manager homeTimeline
 
-loadFollowings :: MonadResource m => Manager -> T.Text -> T.Text -> Integer -> m (WithCursor UsersCursorKey User)
+loadFollowings :: MonadResource m
+               => Manager    -- network manager
+               -> T.Text     -- access token
+               -> T.Text     -- access secret
+               -> Integer    -- user id
+               -> m (WithCursor UsersCursorKey User)
 loadFollowings manager token secret userId =
     call (twInfo token secret) manager $ friendsList (UserIdParam userId)

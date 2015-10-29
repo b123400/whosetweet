@@ -12,22 +12,31 @@ import Yesod.Auth.OAuth
 import Network.HTTP.Client.Conduit (Manager, newManager)
 import TwitterFetcher
 import Debug.Trace (trace)
-import Network.HTTP.Types (status400)
+import Network.HTTP.Types (Status, status400, status200)
 import Network.Wai (responseLBS, Response)
 import Web.Twitter.Conduit.Cursor as Cursor
+import Yesod.Static
+import Yesod.Core.Handler
+import Blaze.ByteString.Builder (toByteString)
+import Data.Text.Encoding (decodeUtf8)
+
+staticFiles "static"
 
 data MyApp = MyApp
     { httpManager :: Manager
+    , getStatic :: Static
     }
 
 instance Yesod MyApp where
     approot = ApprootStatic "http://localhost:3000"
 
 mkYesod "MyApp" [parseRoutes|
-/             HomeR       GET
 /auth         AuthR       Auth getAuth
 /recentTweets TweetR      GET
 /followings   FollowingR  GET
+/loginState   LoginStateR GET
+!/            HomeR       GET
+!/            StaticR     Static getStatic
 |]
 
 instance RenderMessage MyApp FormMessage where
@@ -36,8 +45,8 @@ instance RenderMessage MyApp FormMessage where
 instance YesodAuth MyApp where
     type AuthId MyApp = T.Text
 
-    loginDest _ = HomeR
-    logoutDest _ = HomeR
+    loginDest _ = StaticR (StaticRoute [] [])
+    logoutDest _ = StaticR (StaticRoute [] [])
     authPlugins _ = [authTwitter clientKey clientSecret]
     maybeAuthId = lookupSession "_ID"
     authHttpManager = httpManager
@@ -90,24 +99,30 @@ getSessionAccessSecret = lookupSession "accessSecret"
 getSessionUserId :: MonadHandler m => m (Maybe Text)
 getSessionUserId = lookupSession "userId"
 
-invalidJson :: Text -> Response
-invalidJson text = responseLBS
-    status400
+replyJson :: Status -> Text -> Response
+replyJson status text = responseLBS
+    status
     [("Content-Type", "application/json")]
     $ encode $ object [ ("message" .= text) ]
 
-getHomeR :: Handler Html
-getHomeR = maybeAuthId >>= \maid-> 
-    defaultLayout
-        [whamlet|
-            <p>Your current auth ID: #{show maid}
-            $maybe _ <- maid
-                <p>
-                    <a href=@{AuthR LogoutR}>Logout
-            $nothing
-                <p>
-                    <a href=@{AuthR LoginR}>Go to the login page
-        |]
+getLoginStateR :: Handler Value
+getLoginStateR = 
+    getYesod >>= \app->
+    maybeAuthId >>= \maid-> 
+    sendWaiResponse
+    $ responseLBS status200 [("Content-Type", "application/json")]
+    $ encode $ object [
+     ("key"   .= ("value" :: Text)),
+     ("login" .= (generateUrl app LoginR)),
+     ("logout" .= (generateUrl app LogoutR)),
+     ("state" .= ((case maid of
+        Just userID -> "yes"
+        Nothing     -> "no") :: Text))
+    ]
+
+generateUrl :: RenderRoute a => Yesod site => site -> Route a -> Text
+generateUrl app route = let (paths, params) = renderRoute route
+                        in decodeUtf8 $ toByteString $ (joinPath app "" paths params)
 
 getTweetR :: Handler Value
 getTweetR = getYesod >>= \app ->
@@ -118,7 +133,7 @@ getTweetR = getYesod >>= \app ->
                     (loadTweets (authHttpManager app) t s) >>=
                     return . toJSON
                 otherwise ->
-                    sendWaiResponse $ invalidJson "Access token not found"
+                    sendWaiResponse $ replyJson status400 "Access token not found"
 
 getFollowingR :: Handler Value
 getFollowingR = getYesod >>= \app ->
@@ -130,8 +145,15 @@ getFollowingR = getYesod >>= \app ->
                         (loadFollowings (authHttpManager app) t s (read $ T.unpack u)) >>=
                         return . toJSON . Cursor.contents
                     otherwise ->
-                        sendWaiResponse $ invalidJson "Access token not found"
+                        sendWaiResponse $ replyJson status400 "Access token not found"
+
+getHomeR :: Handler Html
+getHomeR = getYesod >>= \app->
+           let indexPath = "static/index.html"
+           in sendFile "text/html" indexPath
 
 main :: IO ()
-main = newManager >>= \manager ->
-    warp 3000 $ MyApp manager
+main = do
+    manager <- newManager
+    static@(Static settings) <- static "static"
+    warp 3000 $ MyApp manager static
