@@ -68,5 +68,7 @@ executable         whosetweet
                  , twitter-conduit
                  , twitter-types
                  , twitter-types-lens
-                 , lens                          >  4          && < 5
+                 , lens                          >= 4          && < 5
                  , resourcet                     >= 1.1        && < 1.2
+                 , http-types
+                 , wai

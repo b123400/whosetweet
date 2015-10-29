@@ -2,9 +2,13 @@
 
 module TwitterFetcher where
 
-import Web.Twitter.Conduit (homeTimeline, twitterOAuth, TWInfo(..), TWToken(..), call)
-import Web.Twitter.Types.Lens (Status)
 import Web.Authenticate.OAuth (OAuth, oauthConsumerKey, oauthConsumerSecret, Credential(..), def)
+import Web.Twitter.Conduit (homeTimeline, twitterOAuth, TWInfo(..), TWToken(..), call)
+import Web.Twitter.Types.Lens (Status, User)
+import Web.Twitter.Conduit.Parameters (UserParam(..))
+import Web.Twitter.Conduit.Api (friendsList)
+import Web.Twitter.Conduit.Cursor (WithCursor, UsersCursorKey)
+
 import Network.HTTP.Conduit (Manager)
 import Control.Monad.Trans.Resource (MonadResource)
 import qualified Data.Conduit.List as CL
@@ -37,6 +41,9 @@ twInfo token secret = def
     }
 
 loadTweets :: MonadResource m => Manager -> T.Text -> T.Text -> m [Status]
-loadTweets manager token secret = do
-    status <- call (twInfo token secret) manager $ homeTimeline
-    return status
+loadTweets manager token secret =
+    call (twInfo token secret) manager homeTimeline
+
+loadFollowings :: MonadResource m => Manager -> T.Text -> T.Text -> Integer -> m (WithCursor UsersCursorKey User)
+loadFollowings manager token secret userId =
+    call (twInfo token secret) manager $ friendsList (UserIdParam userId)
