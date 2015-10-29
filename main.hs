@@ -113,9 +113,9 @@ getLoginStateR =
     $ responseLBS status200 [("Content-Type", "application/json")]
     $ encode $ object [
      ("key"   .= ("value" :: Text)),
-     ("login" .= (generateUrl app LoginR)),
+     ("login" .= (generateUrl app twitterUrl)),
      ("logout" .= (generateUrl app LogoutR)),
-     ("state" .= ((case maid of
+     ("loggedIn" .= ((case maid of
         Just userID -> "yes"
         Nothing     -> "no") :: Text))
     ]
