@@ -1,13 +1,14 @@
-import Html exposing (div, button, text, a)
-import Html.Events exposing (onClick)
 import StartApp
-import Http exposing (get)
+import Html exposing (Html, div, button, text, a)
+import Html.Events exposing (onClick)
 import Html.Attributes exposing (href)
-import Effects exposing (Effects, Never)
+import Http exposing (get)
+import Effects exposing (Effects, Never, task)
 import Task exposing (Task, succeed, andThen, onError)
 import Json.Decode exposing (dict, string)
 import Debug
 import Dict
+import Guesser
 
 main = app.html
 
@@ -23,31 +24,33 @@ port tasks : Signal (Task.Task Never ())
 port tasks =
   app.tasks
 
+view : Signal.Address Action -> Model -> Html
 view address model =
   case model of
       Loading ->
         div [] [text "Loading"]
-        
 
       NotLoggedIn url ->
         div [] [
           a [href url] [ text "Not logged in, click to login" ]
         ]
 
-      LoggedIn url ->
+      LoggedIn childModel url ->
         div [] [
           a [href url] [ text "Logged in: click to logout" ]
+        , Guesser.view (Signal.forwardTo address UpdateGuesser) childModel
         ]
 
       Errored reason ->
         div [] [text ("Error: "++reason)]
 
 type Model = Loading
-           | NotLoggedIn String -- Login url
-           | LoggedIn    String -- Logout url
-           | Errored     String -- reason
+           | NotLoggedIn String               -- Login url
+           | LoggedIn    Guesser.Model String -- Logout url
+           | Errored     String               -- reason
 
 type Action = Load
+            | UpdateGuesser Guesser.Action
             | Show Bool String  -- logged in, url
             | ShowError String
 
@@ -61,7 +64,23 @@ update action model =
       (model, getLoginState)
 
     Show True url->
-      (LoggedIn url, Effects.none)
+      case model of
+        LoggedIn childModel _ ->
+          (LoggedIn childModel url, Effects.none)
+
+        otherwise->
+          let (model, effect) = Guesser.init
+          in (LoggedIn model url, (Effects.map UpdateGuesser) effect)
+
+    UpdateGuesser childAction ->
+
+      case model of
+        LoggedIn childModel url ->
+          let (newModel, effect) = Guesser.update childAction childModel
+          in (LoggedIn newModel url, (Effects.map UpdateGuesser) effect)
+
+        otherwise ->
+          (model, Effects.none)
 
     Show False url->
       (NotLoggedIn url, Effects.none)

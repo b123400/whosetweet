@@ -9,3 +9,4 @@ cabal.sandbox.config
 .DS_Store
 *.swp
 *.keter
+static/elm-stuff
