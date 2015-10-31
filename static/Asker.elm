@@ -1,4 +1,4 @@
-module Asker (Action, Model, init, update, view) where
+module Asker (Action, Model, isAsking, init, update, view) where
 
 import Html exposing (Html, Attribute, div, button, text, a)
 import Effects exposing (Effects)
@@ -18,6 +18,12 @@ type Action = ShowQuestion Question
 type ChoiceState = Correct
                  | Wrong
                  | NotSelected
+
+isAsking : Model -> Bool
+isAsking model =
+    case model of
+        Asking _   -> True
+        Answered _ -> False
 
 init : Question -> (Model, Effects Action)
 init question =
@@ -68,8 +74,8 @@ answerStyleAttributes state =
 getChoiceState : Bool -> Bool -> ChoiceState
 getChoiceState selected correct =
     case (selected, correct) of
-        (False, _)    -> NotSelected
         (_, True)     -> Correct
+        (False, _)    -> NotSelected
         (True, False) -> Wrong
 
 update : Action -> Model -> (Model, Effects Action)

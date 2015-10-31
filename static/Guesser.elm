@@ -8,7 +8,7 @@ import Effects exposing (Effects, Never)
 import List
 import Dict exposing (Dict)
 import TwitterTypes exposing (Tweet, User, Answer, Question)
-import Asker exposing (Action, Model, init, update, view)
+import Asker exposing (Action, Model, isAsking, init, update, view)
 import Maybe exposing (Maybe(..))
 import Random exposing (Seed)
 import Random.Array
@@ -33,7 +33,7 @@ type Action = ShowError String
             | LoadMoreUsers
             | AddTweets (Array Tweet)
             | TryToPlay
-            | Reply Question User   -- because Answer is a type, argument is the selected choice
+            | Next
             | Finish
             | AskerAction Asker.Action
 
@@ -58,8 +58,11 @@ view address model =
             case model.askerModel of
                 Just askerModel ->
                     div [] [ text ("playing, tweet count: "++(toString (length model.tweets)))
-                           , Asker.view (Signal.forwardTo address AskerAction) askerModel
-                           ]
+                                   , Asker.view (Signal.forwardTo address AskerAction) askerModel
+                                   , text (if isAsking askerModel
+                                           then "asking"
+                                           else "answered")
+                                   ]
                 Nothing ->
                     div [] [ text ("error: no tweets found") ]
 
@@ -93,10 +96,12 @@ update action model =
 
                 -- Model not ready yet, make it ready
                 Nothing ->
-                    let (maybeAskerModel, newModel, effect) = initAskerModel model
-                    in ({ newModel | askerModel <- maybeAskerModel
-                                , viewState <- Playing }
-                       , Effects.map AskerAction effect)
+                    ({model | viewState <- Playing}, Effects.task (succeed Next))
+
+        Next ->
+            let (maybeAskerModel, newModel, effect) = initAskerModel model
+            in ({ newModel | askerModel <- maybeAskerModel }
+               , Effects.map AskerAction effect)
 
         AskerAction subAction ->
             case model.askerModel of
@@ -106,7 +111,9 @@ update action model =
 
                 Just askerModel ->
                     let (newAskerModel, askerEffect) = Asker.update subAction askerModel
-                    in ({model | askerModel <- Just newAskerModel}, Effects.map AskerAction askerEffect)
+                    in ({model | askerModel <- Just newAskerModel},
+                        Effects.batch [ Effects.map AskerAction askerEffect
+                                      , Effects.task (Task.sleep 1000 `andThen` \_-> (succeed Next)) ])
 
         otherwise ->
             (model, Effects.none)
