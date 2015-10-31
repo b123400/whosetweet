@@ -8,7 +8,7 @@ import Effects exposing (Effects, Never)
 import List
 import Dict exposing (Dict)
 import TwitterTypes exposing (Tweet, User, Answer, Question)
-import Asker exposing (Action, Model, isAsking, init, update, view)
+import Asker exposing (Action, Model, init, update, view)
 import Maybe exposing (Maybe(..))
 import Random exposing (Seed)
 import Random.Array
@@ -57,11 +57,14 @@ view address model =
         Playing ->
             case model.askerModel of
                 Just askerModel ->
-                    div [] [ text ("playing, tweet count: "++(toString (length model.tweets)))
+                    div [] [ text ("playing, tweet count: "
+                                   ++(toString (length model.tweets))
+                                   ++"answer count: "
+                                   ++(toString (length model.answers)))
                                    , Asker.view (Signal.forwardTo address AskerAction) askerModel
-                                   , text (if isAsking askerModel
-                                           then "asking"
-                                           else "answered")
+                                   , text (case Asker.getResult askerModel of
+                                           Nothing -> "asking"
+                                           Just _ -> "answered")
                                    ]
                 Nothing ->
                     div [] [ text ("error: no tweets found") ]
@@ -111,7 +114,11 @@ update action model =
 
                 Just askerModel ->
                     let (newAskerModel, askerEffect) = Asker.update subAction askerModel
-                    in ({model | askerModel <- Just newAskerModel},
+                        newAnswers = (case Asker.getResult newAskerModel of
+                                        Just answer -> Array.push answer model.answers
+                                        Nothing     -> model.answers)
+                    in ({model | askerModel <- Just newAskerModel
+                               , answers <- newAnswers },
                         Effects.batch [ Effects.map AskerAction askerEffect
                                       , Effects.task (Task.sleep 1000 `andThen` \_-> (succeed Next)) ])
 
@@ -132,7 +139,7 @@ usersDict tweets =
 
 randomQuestion : Model -> (Maybe Question, Model)
 randomQuestion model =
-    let (maybeTweet, seed1, newTweets) = Random.Array.choose model.seed model.tweets
+    let (maybeTweet, seed1, newTweets) = choose model.seed model.tweets
     in case maybeTweet of
 
         Nothing ->
@@ -155,10 +162,33 @@ randomUsers seed count users =
     users
     |> Dict.values
     |> Array.fromList
-    |> Random.Array.shuffle seed
-    |> (\(array, seed)->
-        (Array.slice 0 count array, seed))
+    |> randomUsers' seed count
 
+randomUsers' : Seed -> Int -> Array User -> (Array User, Seed)
+randomUsers' seed count users =
+    if count == 0
+    then (Array.empty, seed)
+    else
+        let (maybeUser, seed1, usersLeft) = choose seed users
+        in case maybeUser of
+            Just user ->
+                let (remaining, seed2) = randomUsers' seed1 (count-1) usersLeft
+                in (Array.push user remaining, seed2)
+            Nothing ->
+                (Array.empty, seed1)
+
+choose : Seed -> Array.Array a -> (Maybe a, Seed, Array.Array a)
+choose seed arr =
+    if arr == Array.empty
+    then (Nothing, seed, arr)
+    else
+        let intGen = Random.int 0 (Array.length arr - 1)
+            (index, seed') = Random.generate intGen seed
+            front = Array.slice 0 index arr
+            back = (if index+1 < Array.length arr
+                    then Array.slice (index+1) (Array.length arr) arr
+                    else Array.empty)
+        in (Array.get index arr, seed', Array.append front back)
 
 initAskerModel : Model -> (Maybe Asker.Model, Model, Effects Asker.Action)
 initAskerModel model =

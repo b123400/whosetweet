@@ -15,6 +15,9 @@ import qualified Data.Conduit.List as CL
 import qualified Data.Text as T
 import Data.ByteString (ByteString)
 import Data.Text.Encoding (encodeUtf8)
+import Data.Function ((&))
+import Control.Lens.Setter ((?~))
+import Web.Twitter.Conduit.Parameters (count)
 
 clientKey :: ByteString
 clientKey = "l2GlANAaQcWk8EcwgFKDeRIsy"
@@ -46,7 +49,7 @@ loadTweets :: MonadResource m
            -> T.Text       -- access secret
            -> m [Status]
 loadTweets manager token secret =
-    call (twInfo token secret) manager homeTimeline
+    call (twInfo token secret) manager (homeTimeline & count ?~ 200)
 
 loadFollowings :: MonadResource m
                => Manager    -- network manager

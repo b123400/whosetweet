@@ -4,6 +4,7 @@ module TwitterTypes ( Tweet
                     , Answer
                     , tweet
                     , user
+                    , answerCorrect
                     ) where
 
 import Json.Decode exposing (Decoder, dict, string, list, object2, (:=))
@@ -40,3 +41,6 @@ user =
     object2 User
         ("name" := string)
         ("screen_name" := string)
+
+answerCorrect : Answer -> Bool
+answerCorrect answer = answer.question.tweet.user.screenName == answer.answer.screenName
