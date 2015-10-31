@@ -17,7 +17,7 @@ import Array exposing (Array, length)
 type ViewState = Loading
                | Playing
                | Errored String -- reason
-               | Finished Int Int  -- score, 10/20 correct
+               | Finished
 
 type alias Model =
     { viewState  : ViewState
@@ -65,15 +65,15 @@ view address model =
                                    , text (case Asker.getResult askerModel of
                                            Nothing -> "asking"
                                            Just _ -> "answered")
-                                   ]
+                           ]
                 Nothing ->
                     div [] [ text ("error: no tweets found") ]
 
         Errored reason ->
             div [] [ text ("error: "++reason) ]
 
-        Finished corrected total ->
-            div [] [ text ("score: "++(toString corrected)++"/"++(toString total)) ]
+        Finished ->
+            div [] [ text ("score: "++(toString (score model))++"/"++(toString (length model.answers))) ]
 
 update : Action -> Model -> (Model, Effects Action)
 update action model =
@@ -102,9 +102,12 @@ update action model =
                     ({model | viewState <- Playing}, Effects.task (succeed Next))
 
         Next ->
-            let (maybeAskerModel, newModel, effect) = initAskerModel model
-            in ({ newModel | askerModel <- maybeAskerModel }
-               , Effects.map AskerAction effect)
+            if (length model.answers) == 20
+            then ({model | viewState <- Finished }, Effects.none)
+            else
+                let (maybeAskerModel, newModel, effect) = initAskerModel model
+                in ({ newModel | askerModel <- maybeAskerModel }
+                   , Effects.map AskerAction effect)
 
         AskerAction subAction ->
             case model.askerModel of
@@ -199,6 +202,12 @@ initAskerModel model =
             in (Just askerModel, newModel, askerAction)
         Nothing ->
             (Nothing, newModel, Effects.none)
+
+score : Model -> Int
+score model =
+    model.answers
+    |> Array.filter TwitterTypes.answerCorrect
+    |> Array.length
 
 loadTweets : Effects Action
 loadTweets = get (list TwitterTypes.tweet) "/recentTweets"
