@@ -5,30 +5,34 @@ import Json.Decode exposing (list)
 import Task exposing (Task, succeed, andThen, onError)
 import Html exposing (Html, div, button, text, a)
 import Effects exposing (Effects, Never)
-import List exposing (length, head)
+import List
+import Dict exposing (Dict)
 import TwitterTypes exposing (Tweet, User, Answer, Question)
 import Asker exposing (Action, Model, init, update, view)
-import Maybe
+import Maybe exposing (Maybe(..))
+import Random exposing (Seed)
+import Random.Array
+import Array exposing (Array, length)
 
 type ViewState = Loading
-               | Playing Asker.Model
+               | Playing
                | Errored String -- reason
                | Finished Int Int  -- score, 10/20 correct
 
 type alias Model =
     { viewState  : ViewState
-    , tweets     : (List Tweet)     -- tweets that have not seen in any question
-    , questions  : List Question
-    , extraUsers : List User      -- in case if we need more user to make choices
-    , answers    : List Answer
+    , tweets     : Array Tweet
+    , users      : Dict String User  -- screenName : User
+    , answers    : Array Answer
+    , seed       : Seed
+    , askerModel : Maybe Asker.Model
     }
 
 type Action = ShowError String
             | Load
             | LoadMoreUsers
-            | AddTweets (List Tweet)
-            | AddUsers (List User)
-            | Play
+            | AddTweets (Array Tweet)
+            | TryToPlay
             | Reply Question User   -- because Answer is a type, argument is the selected choice
             | Finish
             | AskerAction Asker.Action
@@ -36,10 +40,11 @@ type Action = ShowError String
 init : (Model, Effects Action)
 init = (
     { viewState = Loading
-    , tweets = []
-    , questions = []
-    , extraUsers = []
-    , answers = []
+    , tweets = Array.empty
+    , users = Dict.empty
+    , answers = Array.empty
+    , seed = Random.initialSeed 0 -- fix this with a better seed?
+    , askerModel = Nothing
     }
     , loadTweets)
 
@@ -49,10 +54,14 @@ view address model =
         Loading ->
             div [] [ text "loading" ]
 
-        Playing askerModel ->
-            div [] [ text ("playing, tweet count: "++(toString (length model.tweets)))
-                   , Asker.view (Signal.forwardTo address AskerAction) askerModel
-                   ]
+        Playing ->
+            case model.askerModel of
+                Just askerModel ->
+                    div [] [ text ("playing, tweet count: "++(toString (length model.tweets)))
+                           , Asker.view (Signal.forwardTo address AskerAction) askerModel
+                           ]
+                Nothing ->
+                    div [] [ text ("error: no tweets found") ]
 
         Errored reason ->
             div [] [ text ("error: "++reason) ]
@@ -67,64 +76,98 @@ update action model =
             ({model | viewState <- Errored reason }, Effects.none)
 
         Load ->
-            (model, loadTweets)
+            ({model | viewState <- Loading }, loadTweets)
 
-        AddTweets newTWeets ->
-            ({model | tweets <- model.tweets ++ newTWeets }, Effects.task (succeed Play))
+        AddTweets newTweets ->
+            ((processTweets model newTweets), Effects.task (succeed TryToPlay))
 
-        Play ->
-            let maybeModel = findAskerModel model
-            in case maybeModel of
+        TryToPlay ->
+            if model.viewState == Playing
+            then (model, Effects.none)
+            else
+            case model.askerModel of
 
+                -- Model already ready, now can play
                 Just askerModel ->
-                    ({model | viewState <- Playing askerModel}, Effects.none)
+                    ({model | viewState <- Playing}, Effects.none)
 
-                otherwise->
-                    ({model | viewState <- ShowError "No tweet found"}, Effects.none)
+                -- Model not ready yet, make it ready
+                Nothing ->
+                    let (maybeAskerModel, newModel, effect) = initAskerModel model
+                    in ({ newModel | askerModel <- maybeAskerModel
+                                , viewState <- Playing }
+                       , Effects.map AskerAction effect)
 
         AskerAction subAction ->
-            let maybeModel = findAskerModel model
-            in case maybeModel of
+            case model.askerModel of
+
+                Nothing ->
+                    (model, Effects.none)
 
                 Just askerModel ->
                     let (newAskerModel, askerEffect) = Asker.update subAction askerModel
-                    in ({model | viewState <- Playing newAskerModel}, (Effects.map AskerAction) askerEffect)
-
-                otherwise ->
-                    (model, Effects.none)
+                    in ({model | askerModel <- Just newAskerModel}, Effects.map AskerAction askerEffect)
 
         otherwise ->
             (model, Effects.none)
 
+processTweets : Model -> Array Tweet -> Model
+processTweets model tweets =
+    { model | users <- Dict.union (usersDict tweets) model.users
+            , tweets <- Array.append model.tweets tweets }
 
-findAskerModel : Model -> Maybe Asker.Model
-findAskerModel model =
-    case model.viewState of
-        Playing askerModel ->
-            Just askerModel
+usersDict : Array Tweet -> Dict String User
+usersDict tweets =
+    tweets
+    |> Array.map (\t-> (t.user.screenName, t.user))
+    |> Array.toList
+    |> Dict.fromList
 
-        otherwise ->
-            -- Fix this: return effect
-            randomQuestion model.tweets
-            `Maybe.andThen`
-            (\question ->
-                let (model, effect) = Asker.init question
-                in Just model
-            )
+randomQuestion : Model -> (Maybe Question, Model)
+randomQuestion model =
+    let (maybeTweet, seed1, newTweets) = Random.Array.choose model.seed model.tweets
+    in case maybeTweet of
 
-randomQuestion : List Tweet -> Maybe Question
-randomQuestion tweets =
-    head tweets
-    `Maybe.andThen`
-    (\tweet->
-        Just (Question tweet [tweet.user])
-    )
+        Nothing ->
+            (Nothing, model)
+
+        Just tweet ->
+            let (otherUsers, seed2) = model.users
+                                    |> Dict.remove tweet.user.screenName
+                                    |> randomUsers seed1 3
+                (users, seed3) = otherUsers
+                               |> Array.push tweet.user
+                               |> Random.Array.shuffle seed2
+            in ( Just (Question tweet users)
+               , { model | tweets <- newTweets
+                         , seed <- seed3 }
+               )
+
+randomUsers : Seed -> Int -> Dict String User -> (Array User, Seed)
+randomUsers seed count users =
+    users
+    |> Dict.values
+    |> Array.fromList
+    |> Random.Array.shuffle seed
+    |> (\(array, seed)->
+        (Array.slice 0 count array, seed))
+
+
+initAskerModel : Model -> (Maybe Asker.Model, Model, Effects Asker.Action)
+initAskerModel model =
+    let (maybeQuestion, newModel) = randomQuestion model
+    in case maybeQuestion of
+        Just question ->
+            let (askerModel, askerAction) = Asker.init question
+            in (Just askerModel, newModel, askerAction)
+        Nothing ->
+            (Nothing, newModel, Effects.none)
 
 loadTweets : Effects Action
 loadTweets = get (list TwitterTypes.tweet) "/recentTweets"
   `andThen`
   (\tweets ->
-    succeed (AddTweets tweets)
+    succeed (AddTweets (Array.fromList tweets))
   )
   `onError`
   (\error->

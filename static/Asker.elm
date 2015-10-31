@@ -3,6 +3,7 @@ module Asker (Action, Model, init, update, view) where
 import Html exposing (Html, div, button, text, a)
 import Effects exposing (Effects)
 import TwitterTypes exposing (Tweet, User, Answer, Question)
+import Array
 
 type Model = Asking Question
            | Answered Answer
@@ -19,7 +20,13 @@ view address model =
     case model of
 
         Asking question ->
-            div [] [ text question.tweet.text ]
+            div [] ([ (text question.tweet.text) ] ++
+                    ( question.choices
+                    |> Array.toList
+                    |> List.map (.screenName) 
+                    |> List.map (\screenName ->
+                        div [] [ text screenName ]))
+                   )
 
         Answered answer ->
             div [] [ (text answer.question.tweet.text)

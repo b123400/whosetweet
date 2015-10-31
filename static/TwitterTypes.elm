@@ -7,6 +7,7 @@ module TwitterTypes ( Tweet
                     ) where
 
 import Json.Decode exposing (Decoder, dict, string, list, object2, (:=))
+import Array exposing (Array)
 
 type alias Tweet =
     { user : User
@@ -20,7 +21,7 @@ type alias User =
 
 type alias Question =
     { tweet   : Tweet
-    , choices : List User
+    , choices : Array User
     }
 
 type alias Answer =
