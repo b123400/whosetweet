@@ -1,12 +1,12 @@
 module Asker (Action, Model, ChoiceState(..), getResult, init, update, view) where
 
-import Html exposing (Html, Attribute, div, button, text, a)
+import Html exposing (Html, Attribute, div, text, a)
 import Effects exposing (Effects)
 import TwitterTypes exposing (Tweet, User, Answer, Question)
 import Array exposing (Array)
 import Signal
 import Html.Events exposing (onClick)
-import Html.Attributes exposing (style)
+import Html.Attributes exposing (style, class)
 
 type Model = Asking Question
            | Answered Answer
@@ -31,24 +31,26 @@ init question =
 
 view : Signal.Address Action -> Model -> Html
 view address model =
+    div [class "asker"] [
     case model of
 
         Asking question ->
-            div [] ( [(text question.tweet.text) ] ++
-                      (buttons question.choices (choiceAttributes address))
-            )
+            div [] [ (div [class "question-text"] [text question.tweet.text])
+                   , (div [class "choices"] (buttons question.choices (choiceAttributes address)))
+                   ]
 
         Answered answer ->
-            div [] ([(text answer.question.tweet.text)] ++
-                     (buttons answer.question.choices
+            div [] [ (div [class "question-text"] [text answer.question.tweet.text])
+                   , (div [class "choices"] (buttons answer.question.choices
                         (answerAttributes answer.answer answer.question.tweet.user)))
-
+                   ]
+    ]
 
 buttons : Array User -> (User -> List Attribute) -> List Html
 buttons choices getAttribute =
     choices
     |> Array.map (\user ->
-        button (getAttribute user) [ text user.screenName ])
+        div (getAttribute user) [ text user.screenName ])
     |> Array.toList
 
 choiceAttributes : Signal.Address Action -> User -> List Attribute

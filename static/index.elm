@@ -1,7 +1,7 @@
 import StartApp
 import Html exposing (Html, div, button, text, a)
 import Html.Events exposing (onClick)
-import Html.Attributes exposing (href)
+import Html.Attributes exposing (href, class)
 import Http exposing (get)
 import Effects exposing (Effects, Never, task)
 import Task exposing (Task, succeed, andThen, onError)
@@ -28,16 +28,18 @@ view : Signal.Address Action -> Model -> Html
 view address model =
   case model of
       Loading ->
-        div [] [text "Loading"]
+        div [class "index"] [text "Loading"]
 
       NotLoggedIn url ->
-        div [] [
-          a [href url] [ text "Not logged in, click to login" ]
+        div [class "index"] [
+          a [href url
+            ,class "button"] [ text "Not logged in, click to login" ]
         ]
 
       LoggedIn childModel url ->
-        div [] [
-          a [href url] [ text "Logged in: click to logout" ]
+        div [class "index"] [
+          a [href url
+            ,class "corner"] [ text "Switch account" ]
         , Guesser.view (Signal.forwardTo address UpdateGuesser) childModel
         ]
 
