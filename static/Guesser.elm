@@ -291,7 +291,7 @@ tweetButtonSrc marks total =
            | percentage < 0.6 -> "你們也來試試看猜一下推友喔"
            | percentage < 0.8 -> "我還算是滿了解推友們的啦"
            | otherwise        -> "我對推友們簡直瞭如指掌～"
-    )++" http://whosetweet.b123400.net"))
+    )++" http://whosetweet.b123400.net #猜推友"))
 
 loadTweets : Effects Action
 loadTweets = get (list TwitterTypes.tweet) "/recentTweets"
