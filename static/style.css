@@ -2,6 +2,7 @@ html,head,body, body > div {
     padding:0;
     margin:0;
     height: 100%;
+    word-break: break-word;
 }
 
 body {
@@ -17,21 +18,35 @@ div.index {
     color: white;
 }
 
-div.index a.button {
+div.index div.welcome {
+    top:30%;
+    position: relative;
+}
+
+div.index div.welcome h1 {
+    font-size: 4em;
+}
+
+div.index div.welcome h2 {
+    font-size: 2em;
+}
+
+div.index div.welcome a.button {
     position: relative;
     background-color: rgba(0,0,0,0.2);
     padding: 20px;
     color: white;
-    top: 50%;
     text-decoration: none;
     border-radius: 5px;
+    margin-top: 20px;
+    display: inline-block;
 }
 
-div.index a.button:hover {
+div.index div.welcome a.button:hover {
     background-color: rgba(0,0,0,0.5);
 }
 
-div.index a.corner {
+div.index div.wrapper a.corner {
     position: absolute;
     right: 0;
     top: 0;
@@ -44,9 +59,121 @@ div.index a.corner {
     font-size: 0.8em;
 }
 
+div.index div.about div.title {
+    font-size: 0.8em;
+}
+
+div.index div.about {
+    width: 250px;
+    height: 200px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 20px 0 0 0;
+    position: fixed;
+    right: -220px;
+    bottom: -190px;
+    text-align: left;
+    padding: 15px;
+    transition: all 0.5s;
+}
+
+div.index div.about:hover {
+    right: -10px;
+    bottom: -30px;
+}
+
+div.index div.about a {
+    color: white;
+}
+
+div.index div.about div.me {
+    margin: 20px 0;
+}
+
+div.guesser {
+    padding-bottom: 100px;
+}
+
+div.index div.loading,
+div.guesser div.loading {
+    position: absolute;
+    width: 100%;
+    top: 50%;
+}
+
+div.guesser div.state {
+    padding-top: 5%;
+}
+
+div.guesser div.state span {
+    vertical-align: middle;
+    margin: 10px;
+}
+
+div.guesser div.state span.current1 {
+    animation-name: bounceZoom;
+    animation-duration: 0.5s;
+    animation-iteration-count: 1;
+    animation-timing-function: ease-out;
+    animation-fill-mode: forwards;
+}
+
+div.guesser div.state span.current,
+div.guesser div.state span.total {
+    font-size: 2em;
+    vertical-align: middle;
+    margin: 0;
+    display: inline-block;
+}
+
+div.guesser div.finished {
+    padding-top: 10%;
+}
+
+div.guesser div.finished img {
+    max-width: 100%;
+    display: block;
+    margin: 0 auto;
+    animation-name: bounceZoom;
+    animation-duration: 1s;
+    animation-iteration-count: 1;
+    animation-timing-function: ease-out;
+    animation-fill-mode: forwards;
+}
+
+div.guesser div.finished p.score-text {
+    font-size: 5em;
+    margin: 0.3em;
+}
+
+div.guesser div.finished a.tweet-button {
+    color: white;
+    text-decoration: none;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 15px 40px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 2em;
+}
+
+div.guesser div.finished a.tweet-button:hover {
+    background: rgba(0, 0, 0, 0.5);
+}
+
 div.asker {
     width: 50%;
     margin: 0 auto;
+}
+
+@media (max-width: 850px) {
+    div.asker {
+        width: 70%;
+    }
+}
+
+@media (max-width: 700px) {
+    div.asker {
+        width: 100%;
+    }
 }
 
 div.asker div.question-text {
@@ -89,7 +216,41 @@ div.asker div.choices div {
     cursor: pointer;
 }
 
+@media (max-width: 500px) {
+    div.asker div.choices div {
+        width: 90%%;
+        margin: 1% 0;
+    }
+}
+
 div.asker div.choices div:hover {
     background: rgba(0, 0, 0, 0.5);
 }
 
+div.asker div.choices div.correct {
+    background: #44c977;
+    box-shadow: inset 0 0 0 3px #207c43;
+}
+
+div.asker div.choices div.wrong {
+    background: #ff6576;
+    box-shadow: inset 0 0 0 3px #c6485b;
+}
+
+
+
+
+@keyframes bounceZoom {
+    0% {
+        transform: scale(0);
+    }
+    70% {
+        transform: scale(1.5);
+    }
+    85% {
+        transform: scale(0.8);
+    }
+    100% {
+        transform: scale(1.0);
+    }
+}
