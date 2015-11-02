@@ -1,7 +1,7 @@
 import StartApp
-import Html exposing (Html, div, button, text, a)
+import Html exposing (Html, div, button, text, a, h1, h2)
 import Html.Events exposing (onClick)
-import Html.Attributes exposing (href, class)
+import Html.Attributes exposing (href, class, target)
 import Http exposing (get)
 import Effects exposing (Effects, Never, task)
 import Task exposing (Task, succeed, andThen, onError)
@@ -26,25 +26,67 @@ port tasks =
 
 view : Signal.Address Action -> Model -> Html
 view address model =
+  div [class "index"] [(
   case model of
       Loading ->
-        div [class "index"] [text "Loading"]
+        div [class "loading"] [text "等陣"]
 
       NotLoggedIn url ->
-        div [class "index"] [
-          a [href url
-            ,class "button"] [ text "Not logged in, click to login" ]
+        div [class "welcome"] [
+          h1 [] [text "猜推友"]
+
+        , h2 [] [text "來看看你有多熟悉你的timeline～"]
+
+        , a [href url
+            ,class "button"] [ text "Authorize" ]
         ]
 
       LoggedIn childModel url ->
-        div [class "index"] [
+        div [class "wrapper"] [
           a [href url
             ,class "corner"] [ text "Switch account" ]
         , Guesser.view (Signal.forwardTo address UpdateGuesser) childModel
         ]
 
       Errored reason ->
-        div [] [text ("Error: "++reason)]
+        div [class "loading"] [text ("Error: "++reason++" 一定是Twitter的錯！")]
+  ),
+  div [class "about"] [ div [class "title"] [text "About"]
+
+                      , div [class "me"] [text "By "
+                                         , a [href "http://b123400.net"
+                                             ,target "_blank"]
+                                             [text "b123400."]
+                                         , text " | "
+                                         , a [href "http://github.com/b123400/whosetweet"
+                                                   ,target "_blank"]
+                                                   [text "Sourcecode here."]
+                                         ]
+
+                      , div [class "framework"] [text "Backend written in "
+                                                ,a [href "https://www.haskell.org"
+                                                   ,target "_blank"]
+                                                   [text "Haskell"]
+                                                ,text ", frontend written in "
+                                                ,a [href "http://elm-lang.org"
+                                                   ,target "_blank"]
+                                                   [text "elm."]
+                                                ]
+
+                      , div [class "icon"] [text "Icons made by "
+                                           ,a [href "http://www.freepik.com"
+                                              ,target "_blank"]
+                                              [text "Freepik"]
+                                           ,text " from "
+                                           ,a [href "http://www.flaticon.com"
+                                              ,target "_blank"]
+                                              [text "flaticon"]
+                                           ,text " is licensed by "
+                                           ,a [href "http://creativecommons.org/licenses/by/3.0/"
+                                              ,target "_blank"]
+                                              [text "CC BY 3.0"]]
+                      ]
+  ]
 
 type Model = Loading
            | NotLoggedIn String               -- Login url

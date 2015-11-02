@@ -66,12 +66,12 @@ answerAttributes answered correct current =
 
 answerStyleAttributes : ChoiceState -> Attribute
 answerStyleAttributes state =
-    style [ (
+    class (
         case state of
-            Correct -> ("color", "green")
-            Wrong -> ("color", "red")
-            NotSelected -> ("","")
-    )]
+            Correct     -> "correct"
+            Wrong       -> "wrong"
+            NotSelected -> ""
+    )
 
 getChoiceState : Bool -> Bool -> ChoiceState
 getChoiceState selected correct =

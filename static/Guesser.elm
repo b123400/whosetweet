@@ -1,16 +1,17 @@
 module Guesser (Action, Model, init, update, view) where
 
-import Http exposing (get)
-import Json.Decode exposing (list)
-import Task exposing (Task, succeed, andThen, onError)
-import Html exposing (Html, div, button, text, a)
-import Effects exposing (Effects, Never)
+import Http exposing (get, uriEncode)
 import List
 import Dict exposing (Dict)
-import TwitterTypes exposing (Tweet, User, Answer, Question)
-import Asker exposing (Action, Model, init, update, view)
 import Maybe exposing (Maybe(..))
 import Random exposing (Seed)
+import Json.Decode exposing (list)
+import Task exposing (Task, succeed, andThen, onError)
+import Html exposing (Html, div, button, text, a, span, img, p)
+import Html.Attributes exposing (class, src, href)
+import Effects exposing (Effects, Never)
+import TwitterTypes exposing (Tweet, User, Answer, Question)
+import Asker exposing (Action, Model, init, update, view)
 import Random.Array
 import Array exposing (Array, length)
 
@@ -30,7 +31,6 @@ type alias Model =
 
 type Action = ShowError String
             | Load
-            | LoadMoreUsers
             | AddTweets (Array Tweet)
             | TryToPlay
             | Next
@@ -50,21 +50,19 @@ init = (
 
 view : Signal.Address Action -> Model -> Html
 view address model =
+    div [class "guesser"] [
     case model.viewState of
         Loading ->
-            div [] [ text "loading" ]
+            div [class "loading"] [ text "等陣..." ]
 
         Playing ->
             case model.askerModel of
                 Just askerModel ->
-                    div [] [ text ("playing, tweet count: "
-                                   ++(toString (length model.tweets))
-                                   ++"answer count: "
-                                   ++(toString (length model.answers)))
-                                   , Asker.view (Signal.forwardTo address AskerAction) askerModel
-                                   , text (case Asker.getResult askerModel of
-                                           Nothing -> "asking"
-                                           Just _ -> "answered")
+                    div [] [ div [class "state"] [ span [class ((toString <| length <| model.answers)++" current")] [text (toString (length model.answers))]
+                                                 , span [] [text "/"]
+                                                 , span [class "total"] [text (toString (questionCount model))]
+                                                 ]
+                           , Asker.view (Signal.forwardTo address AskerAction) askerModel
                            ]
                 Nothing ->
                     div [] [ text ("error: no tweets found") ]
@@ -73,7 +71,15 @@ view address model =
             div [] [ text ("error: "++reason) ]
 
         Finished ->
-            div [] [ text ("score: "++(toString (score model))++"/"++(toString (length model.answers))) ]
+            let thisScore = score model
+                total = length model.answers
+            in
+            div [class "finished"] [ scoreImage        model.seed thisScore total
+                                   , p [class "score-text"] [text ((toString thisScore) ++ "/" ++ (toString total))]
+                                   , scoreTextElement  model.seed thisScore total
+                                   , tweetButton       thisScore total
+                                   ]
+    ]
 
 update : Action -> Model -> (Model, Effects Action)
 update action model =
@@ -102,7 +108,7 @@ update action model =
                     ({model | viewState <- Playing}, Effects.task (succeed Next))
 
         Next ->
-            if (length model.answers) == 20
+            if (length model.answers) == (questionCount model)
             then ({model | viewState <- Finished }, Effects.none)
             else
                 let (maybeAskerModel, newModel, effect) = initAskerModel model
@@ -117,13 +123,16 @@ update action model =
 
                 Just askerModel ->
                     let (newAskerModel, askerEffect) = Asker.update subAction askerModel
-                        newAnswers = (case Asker.getResult newAskerModel of
+                        askerResult = Asker.getResult newAskerModel
+                        newAnswers = (case askerResult of
                                         Just answer -> Array.push answer model.answers
                                         Nothing     -> model.answers)
                     in ({model | askerModel <- Just newAskerModel
                                , answers <- newAnswers },
                         Effects.batch [ Effects.map AskerAction askerEffect
-                                      , Effects.task (Task.sleep 1000 `andThen` \_-> (succeed Next)) ])
+                                      , (case askerResult of
+                                            Nothing -> Effects.none
+                                            Just _ -> Effects.task (Task.sleep 1000 `andThen` \_-> (succeed Next)))])
 
         otherwise ->
             (model, Effects.none)
@@ -203,11 +212,86 @@ initAskerModel model =
         Nothing ->
             (Nothing, newModel, Effects.none)
 
+questionCount : Model -> Int
+questionCount model =
+    let totalLength = (length model.tweets)
+                    + (length model.answers)
+                    + (case model.askerModel of
+                        Nothing -> 0
+                        Just _  -> 1)
+    in min totalLength 20
+
 score : Model -> Int
 score model =
     model.answers
     |> Array.filter TwitterTypes.answerCorrect
     |> Array.length
+
+scoreImage : Seed -> Int -> Int -> Html
+scoreImage seed marks total =
+    let percentage = (toFloat marks) / (toFloat total) in
+    if | percentage < 0.4 -> img [src "/score-bad.png"] []
+       | percentage < 0.8 -> img [src "/score-medium.png"] []
+       | otherwise        -> img [src "/score-good.png"] []
+
+scoreTextElement : Seed -> Int -> Int -> Html
+scoreTextElement seed marks total =
+    p [class "score-text"] [ text (
+    let percentage = (toFloat marks) / (toFloat total) in
+    if | percentage < 0.4 ->
+        let (maybeString, _) =  Random.Array.sample seed
+                                  <| Array.fromList ["你完全不認得推友耶"
+                                                    ,"你是來亂的嗎？"
+                                                    ,"你有沒有認真做啊？"
+                                                    ,"認真點做吧"]
+        in Maybe.withDefault "" maybeString
+       | percentage < 0.6 ->
+        let (maybeString, _) =  Random.Array.sample seed
+                                  <| Array.fromList ["還好還好"
+                                                    ,"不錯耶"]
+        in Maybe.withDefault "" maybeString
+
+       | percentage < 0.9 ->
+        let (maybeString, _) =  Random.Array.sample seed
+                                  <| Array.fromList ["好棒棒"
+                                                    ,"不錯耶"]
+        in Maybe.withDefault "" maybeString
+
+       | otherwise ->
+        let (maybeString, _) =  Random.Array.sample seed
+                                  <| Array.fromList ["超準啊！"
+                                                    ,"好神！"
+                                                    ,"好強！"
+                                                    ,"你十分認識推友啊！"
+                                                    ,"厲害"]
+        in Maybe.withDefault "" maybeString
+    )]
+
+tweetButton : Int -> Int -> Html
+tweetButton marks total =
+    a [class "tweet-button"
+      ,href <| tweetButtonSrc marks total
+      ,Html.Attributes.target "_blank"
+      ]
+      [ text (
+        let percentage = (toFloat marks) / (toFloat total) in
+        if | percentage < 0.8 -> "分享結果"
+           | otherwise        -> "炫耀一下"
+        )
+    ]
+
+tweetButtonSrc : Int -> Int -> String
+tweetButtonSrc marks total =
+    "https://twitter.com/intent/tweet?text="
+    ++ ((toString total)++"位推友裏面我猜中了"++(toString marks)++"個，")
+    ++ (uriEncode ((
+        let percentage = (toFloat marks) / (toFloat total) in
+        if | percentage < 0.2 -> "我完全不了解推友們啊"
+           | percentage < 0.4 -> "亂猜也中了幾個嘛！"
+           | percentage < 0.6 -> "你們也來試試看猜一下推友喔"
+           | percentage < 0.8 -> "我還算是滿了解推友們的啦"
+           | otherwise        -> "我對推友們簡直瞭如指掌～"
+    )++" http://whosetweet.b123400.net"))
 
 loadTweets : Effects Action
 loadTweets = get (list TwitterTypes.tweet) "/recentTweets"
