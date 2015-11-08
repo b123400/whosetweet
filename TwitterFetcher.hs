@@ -19,16 +19,10 @@ import Data.Function ((&))
 import Control.Lens.Setter ((?~))
 import Web.Twitter.Conduit.Parameters (count)
 
-clientKey :: ByteString
-clientKey = "l2GlANAaQcWk8EcwgFKDeRIsy"
-
-clientSecret :: ByteString
-clientSecret = "WtYgEtHkmkvrD1g69OXfbcTnRPgrJ6p8yK31NcbhjoXCD0Kq7m"
-
-tokens :: OAuth
-tokens = twitterOAuth
-    { oauthConsumerKey = clientKey
-    , oauthConsumerSecret = clientSecret
+tokens :: ByteString -> ByteString -> OAuth
+tokens key secret = twitterOAuth
+    { oauthConsumerKey = key
+    , oauthConsumerSecret = secret
     }
 
 credential :: T.Text -> T.Text -> Credential
@@ -37,25 +31,29 @@ credential token secret = Credential
     , ("oauth_token_secret", encodeUtf8 secret)
     ]
 
-twInfo :: T.Text -> T.Text -> TWInfo
-twInfo token secret = def
-    { twToken = def { twOAuth = tokens, twCredential = (credential token secret) }
+twInfo :: ByteString -> ByteString -> T.Text -> T.Text -> TWInfo
+twInfo appKey appSecret token secret = def
+    { twToken = def { twOAuth = (tokens appKey appSecret), twCredential = (credential token secret) }
     , twProxy = Nothing
     }
 
 loadTweets :: MonadResource m
            => Manager      -- network manager
+           -> ByteString   -- app key
+           -> ByteString   -- app secret
            -> T.Text       -- access token
            -> T.Text       -- access secret
            -> m [Status]
-loadTweets manager token secret =
-    call (twInfo token secret) manager (homeTimeline & count ?~ 200)
+loadTweets manager appKey appSecret token secret =
+    call (twInfo appKey appSecret token secret) manager (homeTimeline & count ?~ 200)
 
 loadFollowings :: MonadResource m
                => Manager    -- network manager
+               -> ByteString -- app key
+               -> ByteString -- app secret
                -> T.Text     -- access token
                -> T.Text     -- access secret
                -> Integer    -- user id
                -> m (WithCursor UsersCursorKey User)
-loadFollowings manager token secret userId =
-    call (twInfo token secret) manager $ friendsList (UserIdParam userId)
+loadFollowings manager appKey appSecret token secret userId =
+    call (twInfo appKey appSecret token secret) manager $ friendsList (UserIdParam userId)

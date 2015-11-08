@@ -9,26 +9,47 @@ import Data.ByteString (ByteString)
 import Yesod
 import Yesod.Auth
 import Yesod.Auth.OAuth
+import Yesod.Static
+import Yesod.Core.Handler
 import Network.HTTP.Client.Conduit (Manager, newManager)
-import TwitterFetcher
 import Debug.Trace (trace)
 import Network.HTTP.Types (Status, status400, status200)
 import Network.Wai (responseLBS, Response)
+import TwitterFetcher
 import Web.Twitter.Conduit.Cursor as Cursor
-import Yesod.Static
-import Yesod.Core.Handler
+import Yesod.Default.Config2
+
 import Blaze.ByteString.Builder (toByteString)
-import Data.Text.Encoding (decodeUtf8)
+import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 
 staticFiles "static"
 
 data MyApp = MyApp
     { httpManager :: Manager
     , getStatic :: Static
+    , settings :: Setting
     }
 
+
+data Setting = Setting { port :: Int
+                       , approot :: T.Text
+                       , twitterClientId :: T.Text
+                       , twitterClientSecret :: T.Text
+                       }
+                       deriving (Show)
+
+
+instance FromJSON Setting where
+    parseJSON (Object v) = Setting <$>
+                           v .: "port" <*>
+                           v .: "approot" <*>
+                           v .: "twitter_client_id" <*>
+                           v .: "twitter_client_secret"
+
+
+
 instance Yesod MyApp where
-    approot = ApprootStatic "http://localhost:3000"
+    approot = ApprootMaster (\app -> Main.approot $ settings app)
 
 mkYesod "MyApp" [parseRoutes|
 /auth         AuthR       Auth getAuth
@@ -47,7 +68,7 @@ instance YesodAuth MyApp where
 
     loginDest _ = StaticR (StaticRoute [] [])
     logoutDest _ = StaticR (StaticRoute [] [])
-    authPlugins _ = [authTwitter clientKey clientSecret]
+    authPlugins app = [authTwitter (trace (show $ settings app) (encodeUtf8 $ twitterClientId $ settings app)) (encodeUtf8 $ twitterClientSecret $ settings app)]
     maybeAuthId = lookupSession "_ID"
     authHttpManager = httpManager
 
@@ -130,7 +151,7 @@ getTweetR = getYesod >>= \app ->
             getSessionAccessSecret >>= \secret ->
             case (token, secret) of
                 (Just t, Just s) ->
-                    (loadTweets (authHttpManager app) t s) >>=
+                    (loadTweets (authHttpManager app) (encodeUtf8 $ twitterClientId $ settings app) (encodeUtf8 $ twitterClientSecret $ settings app) t s) >>=
                     return . toJSON
                 otherwise ->
                     sendWaiResponse $ replyJson status400 "Access token not found"
@@ -142,7 +163,7 @@ getFollowingR = getYesod >>= \app ->
                 getSessionUserId >>= \userId ->
                 case (token, secret, userId) of
                     (Just t, Just s, Just u) ->
-                        (loadFollowings (authHttpManager app) t s (read $ T.unpack u)) >>=
+                        (loadFollowings (authHttpManager app) (encodeUtf8 $ twitterClientId $ settings app) (encodeUtf8 $ twitterClientSecret $ settings app) t s (read $ T.unpack u)) >>=
                         return . toJSON . Cursor.contents
                     otherwise ->
                         sendWaiResponse $ replyJson status400 "Access token not found"
@@ -155,5 +176,13 @@ getHomeR = getYesod >>= \app->
 main :: IO ()
 main = do
     manager <- newManager
+    appSettings <- getSettings
     static@(Static settings) <- static "static"
-    warp 3000 $ MyApp manager static
+    trace (show appSettings) 
+        (warp (port appSettings) $ MyApp manager static appSettings)
+
+
+getSettings :: IO Setting
+getSettings = loadAppSettings
+              ["config/settings.yml"]
+              [] useEnv

@@ -1,0 +1,5 @@
+port:           "_env:PORT:3000"
+approot:        "_env:APPROOT:http://127.0.0.1:3000"
+
+twitter_client_id:     "_env:TWITTER_CLIENT_ID:YOUR_TWITTER_CLIENT_ID"
+twitter_client_secret: "_env:TWITTER_CLIENT_SECRET:YOUR_TWITTER_CLIENT_SECRET"

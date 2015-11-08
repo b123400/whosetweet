@@ -2,6 +2,7 @@
 
 ##Server side
 
+- Copy config/settings.yml.sample to config/settings.yml and fill in your api keys
 - Install [Haskell](https://www.haskell.org)
 - Install [stack](https://www.stackage.org)
 - run `stack build` in the project folder
