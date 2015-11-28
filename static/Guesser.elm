@@ -85,10 +85,10 @@ update : Action -> Model -> (Model, Effects Action)
 update action model =
     case action of
         ShowError reason ->
-            ({model | viewState <- Errored reason }, Effects.none)
+            ({model | viewState = Errored reason }, Effects.none)
 
         Load ->
-            ({model | viewState <- Loading }, loadTweets)
+            ({model | viewState = Loading }, loadTweets)
 
         AddTweets newTweets ->
             ((processTweets model newTweets), Effects.task (succeed TryToPlay))
@@ -101,18 +101,18 @@ update action model =
 
                 -- Model already ready, now can play
                 Just askerModel ->
-                    ({model | viewState <- Playing}, Effects.none)
+                    ({model | viewState = Playing}, Effects.none)
 
                 -- Model not ready yet, make it ready
                 Nothing ->
-                    ({model | viewState <- Playing}, Effects.task (succeed Next))
+                    ({model | viewState = Playing}, Effects.task (succeed Next))
 
         Next ->
             if (length model.answers) == (questionCount model)
-            then ({model | viewState <- Finished }, Effects.none)
+            then ({model | viewState = Finished }, Effects.none)
             else
                 let (maybeAskerModel, newModel, effect) = initAskerModel model
-                in ({ newModel | askerModel <- maybeAskerModel }
+                in ({ newModel | askerModel = maybeAskerModel }
                    , Effects.map AskerAction effect)
 
         AskerAction subAction ->
@@ -127,8 +127,8 @@ update action model =
                         newAnswers = (case askerResult of
                                         Just answer -> Array.push answer model.answers
                                         Nothing     -> model.answers)
-                    in ({model | askerModel <- Just newAskerModel
-                               , answers <- newAnswers },
+                    in ({model | askerModel = Just newAskerModel
+                               , answers = newAnswers },
                         Effects.batch [ Effects.map AskerAction askerEffect
                                       , (case askerResult of
                                             Nothing -> Effects.none
@@ -139,8 +139,8 @@ update action model =
 
 processTweets : Model -> Array Tweet -> Model
 processTweets model tweets =
-    { model | users <- Dict.union (usersDict tweets) model.users
-            , tweets <- Array.append model.tweets tweets }
+    { model | users = Dict.union (usersDict tweets) model.users
+            , tweets = Array.append model.tweets tweets }
 
 usersDict : Array Tweet -> Dict String User
 usersDict tweets =
@@ -165,8 +165,8 @@ randomQuestion model =
                                |> Array.push tweet.user
                                |> Random.Array.shuffle seed2
             in ( Just (Question tweet users)
-               , { model | tweets <- newTweets
-                         , seed <- seed3 }
+               , { model | tweets = newTweets
+                         , seed = seed3 }
                )
 
 randomUsers : Seed -> Int -> Dict String User -> (Array User, Seed)
@@ -230,34 +230,37 @@ score model =
 scoreImage : Seed -> Int -> Int -> Html
 scoreImage seed marks total =
     let percentage = (toFloat marks) / (toFloat total) in
-    if | percentage < 0.4 -> img [src "/score-bad.png"] []
-       | percentage < 0.8 -> img [src "/score-medium.png"] []
-       | otherwise        -> img [src "/score-good.png"] []
+    if percentage < 0.4 then
+      img [src "/score-bad.png"] []
+    else if percentage < 0.8 then
+      img [src "/score-medium.png"] []
+    else
+      img [src "/score-good.png"] []
 
 scoreTextElement : Seed -> Int -> Int -> Html
 scoreTextElement seed marks total =
     p [class "score-text"] [ text (
     let percentage = (toFloat marks) / (toFloat total) in
-    if | percentage < 0.4 ->
+    if percentage < 0.4 then
         let (maybeString, _) =  Random.Array.sample seed
                                   <| Array.fromList ["你完全不認得推友耶"
                                                     ,"你是來亂的嗎？"
                                                     ,"你有沒有認真做啊？"
                                                     ,"認真點做吧"]
         in Maybe.withDefault "" maybeString
-       | percentage < 0.6 ->
+    else if percentage < 0.6 then
         let (maybeString, _) =  Random.Array.sample seed
                                   <| Array.fromList ["還好還好"
                                                     ,"不錯耶"]
         in Maybe.withDefault "" maybeString
 
-       | percentage < 0.9 ->
+    else if percentage < 0.9 then
         let (maybeString, _) =  Random.Array.sample seed
                                   <| Array.fromList ["好棒棒"
                                                     ,"不錯耶"]
         in Maybe.withDefault "" maybeString
 
-       | otherwise ->
+    else
         let (maybeString, _) =  Random.Array.sample seed
                                   <| Array.fromList ["超準啊！"
                                                     ,"好神！"
@@ -275,8 +278,10 @@ tweetButton marks total =
       ]
       [ text (
         let percentage = (toFloat marks) / (toFloat total) in
-        if | percentage < 0.8 -> "分享結果"
-           | otherwise        -> "炫耀一下"
+        if percentage < 0.8 then
+          "分享結果"
+        else
+          "炫耀一下"
         )
     ]
 
@@ -286,11 +291,12 @@ tweetButtonSrc marks total =
     ++ ((toString total)++"位推友裏面我猜中了"++(toString marks)++"個，")
     ++ (uriEncode ((
         let percentage = (toFloat marks) / (toFloat total) in
-        if | percentage < 0.2 -> "我完全不了解推友們啊"
-           | percentage < 0.4 -> "亂猜也中了幾個嘛！"
-           | percentage < 0.6 -> "你們也來試試看猜一下推友喔"
-           | percentage < 0.8 -> "我還算是滿了解推友們的啦"
-           | otherwise        -> "我對推友們簡直瞭如指掌～"
+        if      percentage < 0.2 then "我完全不了解推友們啊"
+        else if percentage < 0.4 then "亂猜也中了幾個嘛！"
+        else if percentage < 0.6 then "你們也來試試看猜一下推友喔"
+        else if percentage < 0.8 then "我還算是滿了解推友們的啦"
+        else if percentage < 0.9 then "♥我真的很愛推友♥"
+        else                          "我對推友們簡直瞭如指掌～"
     )++" http://whosetweet.b123400.net #猜推友"))
 
 loadTweets : Effects Action
