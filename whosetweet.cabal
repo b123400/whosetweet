@@ -10,6 +10,8 @@ executable         whosetweet
 
     ghc-options:       -threaded -O2 -rtsopts -with-rtsopts=-N
 
+    pkgconfig-depends: zlib
+
     extensions: TemplateHaskell
                 QuasiQuotes
                 OverloadedStrings
