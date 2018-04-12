@@ -66,7 +66,7 @@ executable         whosetweet
                  , time
                  , yesod-auth-oauth              >= 1.4        && < 2.0
                  , authenticate-oauth            >= 1.5        && < 2.0
-                 , transformers                  >= 0.4        && < 0.5
+                 , transformers                  >= 0.4        && < 0.6
                  , twitter-conduit
                  , twitter-types
                  , twitter-types-lens
@@ -76,3 +76,4 @@ executable         whosetweet
                  , wai
                  , yesod-static
                  , blaze-builder                 >= 0.4
+                 , semigroupoids == 5.0.0.4
