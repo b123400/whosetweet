@@ -1,31 +1,30 @@
 # For more information, see: https://github.com/commercialhaskell/stack/blob/release/doc/yaml_configuration.md
 
 # Specifies the GHC version and set of packages available (e.g., lts-3.5, nightly-2015-09-21, ghc-7.10.2)
-resolver: lts-3.11
-compiler: ghc-7.10.3
+resolver: lts-13.17
 
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
 
-allow-newer: true
+#allow-newer: true
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 extra-deps:
-- twitter-conduit-0.1.1.1
-- twitter-types-0.7.1.1
-- twitter-types-lens-0.7.1
-- semigroupoids-5.0.0.4
-
-# Override default flag values for local packages and extra-deps
+- twitter-conduit-0.3.0
+- twitter-types-0.7.2.2
+- twitter-types-lens-0.7.2
+- yesod-auth-oauth-1.6.0.1
+# Override default flag val2es for local packages and extra-deps
 flags:
   twitter-types:
-    time15 : true
+    time15: true
 
 # Extra package databases containing global packages
 extra-package-dbs: []
 
 # Control whether we use the GHC we find on the path
-# system-ghc: true
+system-ghc: true
+skip-ghc-check: true
 
 # Require a specific version of stack, using version ranges
 # require-stack-version: -any # Default

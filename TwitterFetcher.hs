@@ -9,6 +9,7 @@ import Web.Twitter.Conduit.Parameters (UserParam(..))
 import Web.Twitter.Conduit.Api (friendsList)
 import Web.Twitter.Conduit.Cursor (WithCursor, UsersCursorKey)
 
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Network.HTTP.Conduit (Manager)
 import Control.Monad.Trans.Resource (MonadResource)
 import qualified Data.Conduit.List as CL
@@ -38,6 +39,7 @@ twInfo appKey appSecret token secret = def
     }
 
 loadTweets :: MonadResource m
+           => MonadIO m
            => Manager      -- network manager
            -> ByteString   -- app key
            -> ByteString   -- app secret
@@ -45,9 +47,10 @@ loadTweets :: MonadResource m
            -> T.Text       -- access secret
            -> m [Status]
 loadTweets manager appKey appSecret token secret =
-    call (twInfo appKey appSecret token secret) manager (homeTimeline & count ?~ 200)
+    liftIO $ call (twInfo appKey appSecret token secret) manager (homeTimeline & count ?~ 200)
 
 loadFollowings :: MonadResource m
+               => MonadIO m
                => Manager    -- network manager
                -> ByteString -- app key
                -> ByteString -- app secret
@@ -56,4 +59,4 @@ loadFollowings :: MonadResource m
                -> Integer    -- user id
                -> m (WithCursor UsersCursorKey User)
 loadFollowings manager appKey appSecret token secret userId =
-    call (twInfo appKey appSecret token secret) manager $ friendsList (UserIdParam userId)
+    liftIO $ call (twInfo appKey appSecret token secret) manager $ friendsList (UserIdParam userId)

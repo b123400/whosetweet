@@ -70,7 +70,7 @@ instance YesodAuth MyApp where
     logoutDest _ = StaticR (StaticRoute [] [])
     authPlugins app = [authTwitter (trace (show $ settings app) (encodeUtf8 $ twitterClientId $ settings app)) (encodeUtf8 $ twitterClientSecret $ settings app)]
     maybeAuthId = lookupSession "_ID"
-    authHttpManager = httpManager
+    -- authHttpManager = httpManager
 
     authenticate creds =
         let
@@ -149,9 +149,10 @@ getTweetR :: Handler Value
 getTweetR = getYesod >>= \app ->
             getSessionAccessToken >>= \token ->
             getSessionAccessSecret >>= \secret ->
+            authHttpManager >>= \httpMgr ->
             case (token, secret) of
                 (Just t, Just s) ->
-                    (loadTweets (authHttpManager app) (encodeUtf8 $ twitterClientId $ settings app) (encodeUtf8 $ twitterClientSecret $ settings app) t s) >>=
+                    (loadTweets httpMgr (encodeUtf8 $ twitterClientId $ settings app) (encodeUtf8 $ twitterClientSecret $ settings app) t s) >>=
                     return . toJSON
                 otherwise ->
                     sendWaiResponse $ replyJson status400 "Access token not found"
@@ -161,9 +162,10 @@ getFollowingR = getYesod >>= \app ->
                 getSessionAccessToken >>= \token ->
                 getSessionAccessSecret >>= \secret ->
                 getSessionUserId >>= \userId ->
+                authHttpManager >>= \httpMgr ->
                 case (token, secret, userId) of
                     (Just t, Just s, Just u) ->
-                        (loadFollowings (authHttpManager app) (encodeUtf8 $ twitterClientId $ settings app) (encodeUtf8 $ twitterClientSecret $ settings app) t s (read $ T.unpack u)) >>=
+                        (loadFollowings httpMgr (encodeUtf8 $ twitterClientId $ settings app) (encodeUtf8 $ twitterClientSecret $ settings app) t s (read $ T.unpack u)) >>=
                         return . toJSON . Cursor.contents
                     otherwise ->
                         sendWaiResponse $ replyJson status400 "Access token not found"
