@@ -68,7 +68,7 @@ instance YesodAuth MyApp where
 
     loginDest _ = StaticR (StaticRoute [] [])
     logoutDest _ = StaticR (StaticRoute [] [])
-    authPlugins app = [authTwitter (trace (show $ settings app) (encodeUtf8 $ twitterClientId $ settings app)) (encodeUtf8 $ twitterClientSecret $ settings app)]
+    authPlugins app = [authTwitterUsingUserId (trace (show $ settings app) (encodeUtf8 $ twitterClientId $ settings app)) (encodeUtf8 $ twitterClientSecret $ settings app)]
     maybeAuthId = lookupSession "_ID"
     -- authHttpManager = httpManager
 
@@ -127,9 +127,9 @@ replyJson status text = responseLBS
     $ encode $ object [ ("message" .= text) ]
 
 getLoginStateR :: Handler Value
-getLoginStateR = 
+getLoginStateR =
     getYesod >>= \app->
-    maybeAuthId >>= \maid-> 
+    maybeAuthId >>= \maid->
     sendWaiResponse
     $ responseLBS status200 [("Content-Type", "application/json")]
     $ encode $ object [
@@ -180,11 +180,11 @@ main = do
     manager <- newManager
     appSettings <- getSettings
     static@(Static settings) <- static "static"
-    trace (show appSettings) 
+    trace (show appSettings)
         (warp (port appSettings) $ MyApp manager static appSettings)
 
 
 getSettings :: IO Setting
-getSettings = loadAppSettings
+getSettings = loadYamlSettings
               ["config/settings.yml"]
               [] useEnv

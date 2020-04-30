@@ -1,9 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedLabels #-}
 
 module TwitterFetcher where
 
 import Web.Authenticate.OAuth (OAuth, oauthConsumerKey, oauthConsumerSecret, Credential(..), def)
-import Web.Twitter.Conduit (homeTimeline, twitterOAuth, TWInfo(..), TWToken(..), call)
+import Web.Twitter.Conduit (statusesHomeTimeline, twitterOAuth, TWInfo(..), TWToken(..), call)
 import Web.Twitter.Types.Lens (Status, User)
 import Web.Twitter.Conduit.Parameters (UserParam(..))
 import Web.Twitter.Conduit.Api (friendsList)
@@ -18,7 +19,7 @@ import Data.ByteString (ByteString)
 import Data.Text.Encoding (encodeUtf8)
 import Data.Function ((&))
 import Control.Lens.Setter ((?~))
-import Web.Twitter.Conduit.Parameters (count)
+-- import Web.Twitter.Conduit.Parameters (count)
 
 tokens :: ByteString -> ByteString -> OAuth
 tokens key secret = twitterOAuth
@@ -47,7 +48,7 @@ loadTweets :: MonadResource m
            -> T.Text       -- access secret
            -> m [Status]
 loadTweets manager appKey appSecret token secret =
-    liftIO $ call (twInfo appKey appSecret token secret) manager (homeTimeline & count ?~ 200)
+    liftIO $ call (twInfo appKey appSecret token secret) manager (statusesHomeTimeline & #count ?~ 200)
 
 loadFollowings :: MonadResource m
                => MonadIO m
@@ -57,6 +58,6 @@ loadFollowings :: MonadResource m
                -> T.Text     -- access token
                -> T.Text     -- access secret
                -> Integer    -- user id
-               -> m (WithCursor UsersCursorKey User)
+               -> m (WithCursor Integer UsersCursorKey User)
 loadFollowings manager appKey appSecret token secret userId =
     liftIO $ call (twInfo appKey appSecret token secret) manager $ friendsList (UserIdParam userId)

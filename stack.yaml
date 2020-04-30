@@ -10,14 +10,12 @@ packages:
 #allow-newer: true
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 extra-deps:
-- twitter-conduit-0.3.0
-- twitter-types-0.7.2.2
-- twitter-types-lens-0.7.2
+- twitter-conduit-0.5.0
+- twitter-types-0.10.1
+- twitter-types-lens-0.10.0
 - yesod-auth-oauth-1.6.0.1
 # Override default flag val2es for local packages and extra-deps
 flags:
-  twitter-types:
-    time15: true
 
 # Extra package databases containing global packages
 extra-package-dbs: []
