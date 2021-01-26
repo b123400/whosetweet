@@ -14,6 +14,7 @@ extra-deps:
 - twitter-types-0.10.1
 - twitter-types-lens-0.10.0
 - yesod-auth-oauth-1.6.0.1
+- language-javascript-0.6.0.11
 # Override default flag val2es for local packages and extra-deps
 flags:
 
